@@ -4,7 +4,7 @@ import Image from 'next/image';
 function StoryCard({ story }) {
   return (
     <div className="relative h-80 rounded-lg overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-      {/* Optimized Image with priority loading for above-the-fold cards */}
+      {/* Optimized Image */}
       <Image
         src={story.image || "/api/placeholder/400/320"}
         alt={story.title}
@@ -12,28 +12,21 @@ function StoryCard({ story }) {
         className="object-cover"
         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
         quality={80}
-        priority={story.id <= 4} // Prioritize first 4 cards
+        priority={story.id <= 4}
       />
 
       {/* Gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-t from-black to-transparent opacity-70" />
 
-      {/* Action buttons */}
+      {/* Top action buttons */}
       <div className="absolute top-2 right-2 z-10 flex space-x-1">
-        <button 
-          className="w-6 h-6 rounded-md bg-white/80 p-1 backdrop-blur-sm hover:bg-white transition-colors"
-          aria-label="Preview story"
-        >
-          <EyeIcon className="h-4 w-4 text-black" />
+        <button className="hover:bg-white flex items-center justify-center">
+          <EyeIcon />
         </button>
-        <button 
-          className="w-6 h-6 rounded-md bg-white/80 p-1 backdrop-blur-sm hover:bg-white transition-colors"
-          aria-label="Edit image"
-        >
+        <button className="w-6 h-6 rounded-md bg-white/80 p-1 backdrop-blur-sm hover:bg-white flex items-center justify-center">
           <ImageIcon className="h-4 w-4 text-black" />
         </button>
       </div>
-
       {/* Card footer */}
       <div className="absolute inset-x-0 bottom-0 z-10 p-3">
         {/* Title */}
@@ -57,11 +50,11 @@ function StoryCard({ story }) {
                 : "bg-yellow-100 text-yellow-800"
             }`}
           >
-            {story.status.toLowerCase()}
+            {story.status}
           </span>
         </div>
 
-        {/* Action buttons */}
+        {/* Footer action buttons */}
         <div className="flex justify-between gap-2">
           <button 
             className="flex-1 rounded-md border border-gray-300 bg-blue-100 px-4 py-2 text-sm font-medium text-black hover:bg-white transition-colors"
@@ -70,7 +63,7 @@ function StoryCard({ story }) {
             View
           </button>
           <button 
-            className="rounded-md bg-white/90 p-2 text-gray-700 hover:bg-white transition-colors"
+            className="rounded-md bg-white/90 p-2 text-gray-700 hover:bg-white transition-colors flex items-center justify-center"
             aria-label="More options"
           >
             <MoreVerticalIcon className="h-4 w-4" />
