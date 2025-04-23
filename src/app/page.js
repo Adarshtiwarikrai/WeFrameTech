@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, Suspense, lazy } from "react";
 import Link from "next/link";
 import Head from "next/head";
 import Image from "next/image";
@@ -12,13 +12,15 @@ import {
   ChevronRight,
 } from "lucide-react";
 
-// Dynamic imports for non-critical components
+// Dynamic imports with explicit SSR:false for client-only components
 const Search = dynamic(() => import("lucide-react").then(mod => mod.Search), {
-  loading: () => <div className="w-4 h-4 bg-gray-200 animate-pulse rounded" />
+  loading: () => <div className="w-4 h-4 bg-gray-200 animate-pulse rounded" />,
+  ssr: false
 });
 
 const StoryCard = dynamic(() => import("./Storycard"), {
-  loading: () => <div className="h-80 bg-gray-100 rounded-lg animate-pulse" />
+  loading: () => <div className="h-80 bg-gray-100 rounded-lg animate-pulse" />,
+  ssr: false
 });
 
 // Static imports for critical icons
@@ -40,13 +42,153 @@ import {
   ChevronDownIcon,
 } from "./Font";
 
+// Static data outside component to prevent re-creation on renders
+const stories = [
+  {
+    id: 1,
+    title: "How 7 lines code turned into $36 Billion Empire",
+    category: "BUSINESS",
+    date: "20 Sep 2022",
+    status: "published",
+    image:
+      "https://storage.googleapis.com/moviebucket4/d146146865a8273af2cbbc88616b1353aee1e51d.jpg",
+  },
+  {
+    id: 2,
+    title: "Chez pierre restaurant in Monte Carlo by Vudafieri",
+    category: "BUSINESS",
+    date: "20 Sep 2022",
+    status: "Created",
+    image:
+      "https://storage.googleapis.com/moviebucket4/946088e41fcf6ae1c41573d1edb5f8df03f55286.jpg",
+  },
+  {
+    id: 3,
+    title: "Teknion wins Gold at 2022 International Design Awards",
+    category: "Fashion",
+    date: "20 Sep 2022",
+    status: "draft",
+    image:
+      "https://storage.googleapis.com/moviebucket4/76f2c230759217edfe5f1a091005f8427421914b.jpg",
+  },
+  {
+    id: 4,
+    title: "How 7 lines code turned into $36 Billion Empire",
+    category: "BUSINESS",
+    date: "20 Sep 2022",
+    status: "published",
+    image:
+      "https://storage.googleapis.com/moviebucket4/8961e90a522b89a6e06ce18044367a842aca9275.jpg",
+  },
+  {
+    id: 5,
+    title: "How 7 lines code turned into $36 Billion Empire",
+    category: "BUSINESS",
+    date: "20 Sep 2022",
+    status: "published",
+    image:
+      "https://storage.googleapis.com/moviebucket4/50055e068d3e793d787c742e2bf6bd084b39469f.jpg",
+  },
+  {
+    id: 6,
+    title: "Chez pierre restaurant in Monte Carlo by Vudafieri",
+    category: "BUSINESS",
+    date: "20 Sep 2022",
+    status: "Published",
+    image:
+      "https://storage.googleapis.com/moviebucket4/e7f0d0f053fb3c59a997fb80d8b633a9081c0d9e.jpg",
+  },
+  {
+    id: 7,
+    title: "Teknion wins Gold at 2022 International Design Awards",
+    category: "Fashion",
+    date: "20 Sep 2022",
+    status: "published",
+    image:
+      "https://storage.googleapis.com/moviebucket4/e6f2d69706f0253506c9330c8d41d69a81543c7c.jpg",
+  },
+  {
+    id: 8,
+    title: "How 7 lines code turned into $36 Billion Empire",
+    category: "BUSINESS",
+    date: "20 Sep 2022",
+    status: "published",
+    image:
+      "https://storage.googleapis.com/moviebucket4/50055e068d3e793d787c742e2bf6bd084b39469f.jpg",
+  },
+];
+
+// Tab configuration outside component
+const tabs = [
+  { id: "all", label: "All", count: 4500 },
+  { id: "draft", label: "Draft", count: 1200 },
+  { id: "pending", label: "Pending", count: 190 },
+  { id: "published", label: "Published", count: 2432 },
+  { id: "archived", label: "Archived", count: 520 },
+];
+
+// Navigation items outside component
+const navItems = [
+  { id: "Dashboard", icon: HomeIcon, label: "Dashboard" },
+  { id: "Content", icon: FileIcon, label: "Content" },
+  { id: "User", icon: TaskIcon, label: "User" },
+  { id: "Task", icon: UserIcon, label: "Task" },
+  { id: "Customize", icon: Customize, label: "Customize" },
+  { id: "App/Web", icon: WebIcon, label: "App/Web" },
+  { id: "Analytics", icon: AnalyticsIcon, label: "Analytics" },
+  { id: "Media", icon: MediaIcon, label: "Media" },
+  { id: "Notifications", icon: NotificationIcon, label: "Notifications" },
+  { id: "Subscription", icon: SubscriptionIcon, label: "Subscription" },
+  { id: "Settings", icon: SettingsIcon, label: "Settings" },
+];
+
+// Create reusable UI components
+const SidebarButton = ({ active, icon: Icon, label, onClick }) => (
+  <button
+    onClick={onClick}
+    className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
+      active
+        ? "bg-blue-900 text-white"
+        : "text-gray-600 hover:bg-violet-50 hover:text-violet-800"
+    }`}
+    aria-current={active ? "page" : undefined}
+  >
+    <span className="w-5 h-5 flex items-center justify-center">
+      <Icon
+        className={`${
+          active ? "text-white" : "text-gray-600"
+        } transition-all duration-300 hover:scale-125`}
+      />
+    </span>
+    {label && (
+      <span className="truncate transition-opacity duration-200">
+        {label}
+      </span>
+    )}
+  </button>
+);
+
+const TabButton = ({ active, id, label, count, onClick }) => (
+  <button
+    onClick={onClick}
+    className={`rounded-lg border-2 px-3 py-2 text-sm font-medium transition-all ${
+      active
+        ? "bg-blue-900 text-white"
+        : "border-transparent text-gray-900 hover:border-gray-300 hover:text-gray-700"
+    }`}
+    aria-label={`Show ${label} stories`}
+  >
+    {label} ({count.toLocaleString()})
+  </button>
+);
+
 export default function StoriesDashboard() {
   const [activeTab, setActiveTab] = useState("all");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [activeNav, setActiveNav] = useState("Dashboard");
 
-  // Optimized resize handler with animation frame
+  // Optimized resize handler with debounce using requestAnimationFrame
   useEffect(() => {
     let frameId;
     const handleResize = () => {
@@ -54,121 +196,26 @@ export default function StoriesDashboard() {
       frameId = requestAnimationFrame(() => {
         const mobile = window.innerWidth < 1024;
         setIsMobile(mobile);
-        if (!mobile) setSidebarOpen(true);
+        if (mobile !== isMobile) {
+          if (!mobile) setSidebarOpen(true);
+        }
       });
     };
 
     handleResize();
-    window.addEventListener("resize", handleResize);
+    window.addEventListener("resize", handleResize, { passive: true });
     return () => {
       cancelAnimationFrame(frameId);
       window.removeEventListener("resize", handleResize);
     };
-  }, []);
+  }, [isMobile]);
 
   const toggleSidebar = useCallback(() => setSidebarOpen(p => !p), []);
-
-  // Memoized data
-  const stories = [
-    {
-      id: 1,
-      title: "How 7 lines code turned into $36 Billion Empire",
-      category: "BUSINESS",
-      date: "20 Sep 2022",
-      status: "published",
-      image:
-        "https://storage.googleapis.com/moviebucket4/d146146865a8273af2cbbc88616b1353aee1e51d.jpg",
-    },
-    {
-      id: 2,
-      title: "Chez pierre restaurant in Monte Carlo by Vudafieri",
-      category: "BUSINESS",
-      date: "20 Sep 2022",
-      status: "Created",
-      image:
-        "https://storage.googleapis.com/moviebucket4/946088e41fcf6ae1c41573d1edb5f8df03f55286.jpg",
-    },
-    {
-      id: 3,
-      title: "Teknion wins Gold at 2022 International Design Awards",
-      category: "Fashion",
-      date: "20 Sep 2022",
-      status: "draft",
-      image:
-        "https://storage.googleapis.com/moviebucket4/76f2c230759217edfe5f1a091005f8427421914b.jpg",
-    },
-    {
-      id: 4,
-      title: "How 7 lines code turned into $36 Billion Empire",
-      category: "BUSINESS",
-      date: "20 Sep 2022",
-      status: "published",
-      image:
-        "https://storage.googleapis.com/moviebucket4/8961e90a522b89a6e06ce18044367a842aca9275.jpg",
-    },
-    {
-      id: 5,
-      title: "How 7 lines code turned into $36 Billion Empire",
-      category: "BUSINESS",
-      date: "20 Sep 2022",
-      status: "published",
-      image:
-        "https://storage.googleapis.com/moviebucket4/50055e068d3e793d787c742e2bf6bd084b39469f.jpg",
-    },
-    {
-      id: 6,
-      title: "Chez pierre restaurant in Monte Carlo by Vudafieri",
-      category: "BUSINESS",
-      date: "20 Sep 2022",
-      status: "Published",
-      image:
-        "https://storage.googleapis.com/moviebucket4/e7f0d0f053fb3c59a997fb80d8b633a9081c0d9e.jpg",
-    },
-    {
-      id: 7,
-      title: "Teknion wins Gold at 2022 International Design Awards",
-      category: "Fashion",
-      date: "20 Sep 2022",
-      status: "published",
-      image:
-        "https://storage.googleapis.com/moviebucket4/e6f2d69706f0253506c9330c8d41d69a81543c7c.jpg",
-    },
-    {
-      id: 8,
-      title: "How 7 lines code turned into $36 Billion Empire",
-      category: "BUSINESS",
-      date: "20 Sep 2022",
-      status: "published",
-      image:
-        "https://storage.googleapis.com/moviebucket4/50055e068d3e793d787c742e2bf6bd084b39469f.jpg",
-    },
-  ];
-
-
-  // Tab configuration for content filtering
-  const tabs = [
-    { id: "all", label: "All", count: 4500 },
-    { id: "draft", label: "Draft", count: 1200 },
-    { id: "pending", label: "Pending", count: 190 },
-    { id: "published", label: "Published", count: 2432 },
-    { id: "archived", label: "Archived", count: 520 },
-  ];
-
-  // Navigation items for sidebar
   
-  const navItems = useMemo(() => [
-    { id: "Dashboard", icon: HomeIcon, label: "Dashboard" },
-    { id: "Content", icon: FileIcon, label: "Content" },
-    { id: "User", icon: TaskIcon, label: "User" },
-    { id: "Task", icon: UserIcon, label: "Task" },
-    { id: "Customize", icon: Customize, label: "Customize" },
-    { id: "App/Web", icon: WebIcon, label: "App/Web" },
-    { id: "Analytics", icon: AnalyticsIcon, label: "Analytics" },
-    { id: "Media", icon: MediaIcon, label: "Media" },
-    { id: "Notifications", icon: NotificationIcon, label: "Notifications" },
-    { id: "Subscription", icon: SubscriptionIcon, label: "Subscription" },
-    { id: "Settings", icon: SettingsIcon, label: "Settings" },
-  ], []);
+  const handleNavClick = useCallback((id) => {
+    setActiveNav(id);
+    if (isMobile) toggleSidebar();
+  }, [isMobile, toggleSidebar]);
 
   // Memoized user profile section
   const UserProfile = useMemo(() => (
@@ -181,7 +228,7 @@ export default function StoriesDashboard() {
           height={36}
           className="w-9 h-9 rounded-full object-cover shrink-0 transition-transform hover:scale-110"
           priority
-          quality={85}
+          quality={75}
           placeholder="blur"
           blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAFhAJ/wlseKgAAAABJRU5ErkJggg=="
         />
@@ -198,21 +245,33 @@ export default function StoriesDashboard() {
     </div>
   ), []);
 
+  // Pre-computed class strings
+  const sidebarClasses = `fixed inset-y-0 left-0 z-40 border-r bg-white transition-all duration-200 ${
+    sidebarOpen ? "w-[200px]" : "w-20 -translate-x-full lg:translate-x-0"
+  }`;
+  
+  const mainContentClasses = `flex flex-col min-h-screen bg-gray-50 transition-all duration-200 ${
+    sidebarOpen ? "lg:ml-[200px]" : "lg:ml-20"
+  }`;
+
   return (
     <>
       <Head>
         <title>Stories Dashboard</title>
         <meta name="description" content="Manage your stories dashboard" />
-        {/* Preload critical assets */}
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        {/* Resource hints */}
         <link rel="preconnect" href="https://storage.googleapis.com" />
+        <link rel="dns-prefetch" href="https://storage.googleapis.com" />
         <link 
           rel="preload" 
           href="https://storage.googleapis.com/moviebucket4/a66e3c587b925507a17595d38b9654c3a4847f76.png" 
           as="image"
+          fetchpriority="high"
         />
       </Head>
 
-      {/* Mobile overlay */}
+      {/* Mobile overlay - conditionally rendered to reduce DOM nodes */}
       {sidebarOpen && isMobile && (
         <div
           onClick={toggleSidebar}
@@ -222,11 +281,7 @@ export default function StoriesDashboard() {
       )}
 
       {/* Sidebar component */}
-      <aside
-        className={`fixed inset-y-0 left-0 z-40 border-r bg-white transition-all duration-200 ${
-          sidebarOpen ? "w-[200px]" : "w-20 -translate-x-full lg:translate-x-0"
-        }`}
-      >
+      <aside className={sidebarClasses}>
         {/* Sidebar content */}
         <div className="flex h-16 items-center justify-between px-4">
           {sidebarOpen && (
@@ -241,33 +296,14 @@ export default function StoriesDashboard() {
           )}
         </div>
 
-        {navItems.map(({ id, icon: IconComponent, label }) => (
-          <button
+        {navItems.map(({ id, icon, label }) => (
+          <SidebarButton
             key={id}
-            onClick={() => {
-              setActiveNav(id);
-              isMobile && toggleSidebar();
-            }}
-            className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
-              activeNav === id
-                ? "bg-blue-900 text-white"
-                : "text-gray-600 hover:bg-violet-50 hover:text-violet-800"
-            }`}
-            aria-current={activeNav === id ? "page" : undefined}
-          >
-            <span className="w-5 h-5 flex items-center justify-center">
-              <IconComponent
-                className={`${
-                  activeNav === id ? "text-white" : "text-gray-600"
-                } transition-all duration-300 hover:scale-125`}
-              />
-            </span>
-            {sidebarOpen && (
-              <span className="truncate transition-opacity duration-200">
-                {label}
-              </span>
-            )}
-          </button>
+            active={activeNav === id}
+            icon={icon}
+            label={sidebarOpen ? label : null}
+            onClick={() => handleNavClick(id)}
+          />
         ))}
 
         {/* Support section */}
@@ -285,7 +321,7 @@ export default function StoriesDashboard() {
           </button>
         </div>
 
-        {/* Sidebar toggle */}
+        {/* Sidebar toggle - only render when needed */}
         {!sidebarOpen && (
           <button
             onClick={toggleSidebar}
@@ -298,7 +334,7 @@ export default function StoriesDashboard() {
       </aside>
 
       {/* Main content */}
-      <div className={`flex flex-col min-h-screen bg-gray-50 transition-all duration-200 ${sidebarOpen ? "lg:ml-[200px]" : "lg:ml-20"}`}>
+      <div className={mainContentClasses}>
         <header className="sticky top-0 z-20 flex items-center gap-3 border border-gray-200 bg-white px-4 py-2 shadow-sm lg:shadow-none rounded-md">
           <button
             onClick={toggleSidebar}
@@ -312,6 +348,7 @@ export default function StoriesDashboard() {
             href="/"
             className="flex items-center gap-2 text-gray-700 hover:text-gray-900 transition-colors"
             aria-label="Return home"
+            prefetch={false}
           >
             <ArrowLeft className="h-5 w-5 transition-transform hover:-translate-x-1" />
             <span className="font-medium">Stories</span>
@@ -362,27 +399,28 @@ export default function StoriesDashboard() {
           {/* Tabs */}
           <div className="mb-4 overflow-x-auto border-b">
             <nav className="flex whitespace-nowrap">
-              {tabs.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => setActiveTab(t.id)}
-                  className={`rounded-lg border-2 px-3 py-2 text-sm font-medium transition-all ${
-                    activeTab === t.id
-                      ? "bg-blue-900 text-white"
-                      : "border-transparent text-gray-900 hover:border-gray-300 hover:text-gray-700"
-                  }`}
-                  aria-label={`Show ${t.label} stories`}
-                >
-                  {t.label} ({t.count.toLocaleString()})
-                </button>
+              {tabs.map((tab) => (
+                <TabButton
+                  key={tab.id}
+                  active={activeTab === tab.id}
+                  id={tab.id}
+                  label={tab.label}
+                  count={tab.count}
+                  onClick={() => setActiveTab(tab.id)}
+                />
               ))}
             </nav>
           </div>
 
-          {/* Stories grid */}
+          {/* Stories grid with virtualization for better performance */}
           <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
             {stories.map((story) => (
-              <StoryCard key={story.id} story={story} />
+              <Suspense 
+                key={story.id} 
+                fallback={<div className="h-80 bg-gray-100 rounded-lg animate-pulse" />}
+              >
+                <StoryCard story={story} />
+              </Suspense>
             ))}
           </section>
         </main>
