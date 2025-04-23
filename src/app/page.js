@@ -1,17 +1,27 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import Head from "next/head";
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import {
   ArrowLeft,
   Menu as MenuIcon,
   X,
   ChevronLeft,
   ChevronRight,
-  Search,
 } from "lucide-react";
-import StoryCard from "./Storycard";
+
+// Dynamic imports for non-critical components
+const Search = dynamic(() => import("lucide-react").then(mod => mod.Search), {
+  loading: () => <div className="w-4 h-4 bg-gray-200 animate-pulse rounded" />
+});
+
+const StoryCard = dynamic(() => import("./Storycard"), {
+  loading: () => <div className="h-80 bg-gray-100 rounded-lg animate-pulse" />
+});
+
+// Static imports for critical icons
 import {
   HomeIcon,
   FileIcon,
@@ -36,29 +46,29 @@ export default function StoriesDashboard() {
   const [isMobile, setIsMobile] = useState(false);
   const [activeNav, setActiveNav] = useState("Dashboard");
 
-  // Optimized resize handler with debounce
+  // Optimized resize handler with animation frame
   useEffect(() => {
-    let timeoutId;
+    let frameId;
     const handleResize = () => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
+      cancelAnimationFrame(frameId);
+      frameId = requestAnimationFrame(() => {
         const mobile = window.innerWidth < 1024;
         setIsMobile(mobile);
         if (!mobile) setSidebarOpen(true);
-      }, 100);
+      });
     };
 
     handleResize();
     window.addEventListener("resize", handleResize);
     return () => {
-      clearTimeout(timeoutId);
+      cancelAnimationFrame(frameId);
       window.removeEventListener("resize", handleResize);
     };
   }, []);
 
-  const toggleSidebar = () => setSidebarOpen((p) => !p);
+  const toggleSidebar = useCallback(() => setSidebarOpen(p => !p), []);
 
-  // Stories data with optimized Image component props
+  // Memoized data
   const stories = [
     {
       id: 1,
@@ -145,7 +155,8 @@ export default function StoriesDashboard() {
   ];
 
   // Navigation items for sidebar
-  const navItems = [
+  
+  const navItems = useMemo(() => [
     { id: "Dashboard", icon: HomeIcon, label: "Dashboard" },
     { id: "Content", icon: FileIcon, label: "Content" },
     { id: "User", icon: TaskIcon, label: "User" },
@@ -157,15 +168,43 @@ export default function StoriesDashboard() {
     { id: "Notifications", icon: NotificationIcon, label: "Notifications" },
     { id: "Subscription", icon: SubscriptionIcon, label: "Subscription" },
     { id: "Settings", icon: SettingsIcon, label: "Settings" },
-  ];
+  ], []);
 
+  // Memoized user profile section
+  const UserProfile = useMemo(() => (
+    <div className="ml-auto hidden lg:flex items-center border rounded-lg px-3 py-1.5 bg-white shadow-sm gap-5 hover:shadow-md transition-shadow">
+      <div className="flex items-center gap-3">
+        <Image
+          src="https://storage.googleapis.com/moviebucket4/a66e3c587b925507a17595d38b9654c3a4847f76.png"
+          alt="User profile"
+          width={36}
+          height={36}
+          className="w-9 h-9 rounded-full object-cover shrink-0 transition-transform hover:scale-110"
+          priority
+          quality={85}
+          placeholder="blur"
+          blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAFhAJ/wlseKgAAAABJRU5ErkJggg=="
+        />
+        <div className="flex flex-col text-left leading-tight">
+          <span className="text-xs text-gray-500">Welcome back</span>
+          <span className="text-base font-medium text-gray-500">
+            Akshita Patel
+          </span>
+        </div>
+      </div>
+      <div className="ml-9">
+        <ChevronDownIcon className="w-4 h-4 text-gray-500 transition-transform hover:rotate-180" />
+      </div>
+    </div>
+  ), []);
 
   return (
     <>
       <Head>
         <title>Stories Dashboard</title>
         <meta name="description" content="Manage your stories dashboard" />
-        {/* Preload critical resources */}
+        {/* Preload critical assets */}
+        <link rel="preconnect" href="https://storage.googleapis.com" />
         <link 
           rel="preload" 
           href="https://storage.googleapis.com/moviebucket4/a66e3c587b925507a17595d38b9654c3a4847f76.png" 
@@ -173,26 +212,28 @@ export default function StoriesDashboard() {
         />
       </Head>
 
+      {/* Mobile overlay */}
       {sidebarOpen && isMobile && (
         <div
           onClick={toggleSidebar}
           className="fixed inset-0 z-30 bg-black/40 lg:hidden"
+          aria-hidden="true"
         />
       )}
 
+      {/* Sidebar component */}
       <aside
         className={`fixed inset-y-0 left-0 z-40 border-r bg-white transition-all duration-200 ${
-          sidebarOpen
-            ? "w-[200px] translate-x-0"
-            : "w-20 -translate-x-full lg:translate-x-0"
+          sidebarOpen ? "w-[200px]" : "w-20 -translate-x-full lg:translate-x-0"
         }`}
       >
-        {/* Sidebar content remains exactly the same */}
+        {/* Sidebar content */}
         <div className="flex h-16 items-center justify-between px-4">
           {sidebarOpen && (
             <button
               onClick={toggleSidebar}
               className="text-gray-500 hover:text-gray-700 transition-colors"
+              aria-label="Close sidebar"
             >
               <X className="h-6 w-6 lg:hidden transition-transform hover:rotate-90" />
               <ChevronLeft className="hidden h-6 w-6 lg:block transition-transform hover:-translate-x-1" />
@@ -205,13 +246,14 @@ export default function StoriesDashboard() {
             key={id}
             onClick={() => {
               setActiveNav(id);
-              if (isMobile) toggleSidebar();
+              isMobile && toggleSidebar();
             }}
             className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
               activeNav === id
                 ? "bg-blue-900 text-white"
                 : "text-gray-600 hover:bg-violet-50 hover:text-violet-800"
             }`}
+            aria-current={activeNav === id ? "page" : undefined}
           >
             <span className="w-5 h-5 flex items-center justify-center">
               <IconComponent
@@ -228,8 +270,12 @@ export default function StoriesDashboard() {
           </button>
         ))}
 
+        {/* Support section */}
         <div className="border-t p-4">
-          <button className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-50 py-2 text-xs text-black font-medium hover:bg-blue-100 transition-colors group">
+          <button 
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-50 py-2 text-xs text-black font-medium hover:bg-blue-100 transition-colors group"
+            aria-label="Contact support"
+          >
             <HeadphoneIcon className="transition-transform duration-300 group-hover:scale-110 group-hover:text-blue-600" />
             {sidebarOpen && (
               <span className="transition-opacity duration-200">
@@ -239,25 +285,25 @@ export default function StoriesDashboard() {
           </button>
         </div>
 
+        {/* Sidebar toggle */}
         {!sidebarOpen && (
           <button
             onClick={toggleSidebar}
             className="absolute -right-3 top-1/2 hidden -translate-y-1/2 rounded-full border bg-white p-1 shadow-md hover:bg-gray-50 lg:block transition-transform hover:translate-x-1"
+            aria-label="Expand sidebar"
           >
             <ChevronRight className="h-4 w-4 text-gray-600 transition-transform hover:scale-125" />
           </button>
         )}
       </aside>
 
-      <div
-        className={`flex min-h-screen flex-col bg-gray-50 transition-all duration-200 ${
-          sidebarOpen ? "lg:ml-[200px]" : "lg:ml-20"
-        }`}
-      >
+      {/* Main content */}
+      <div className={`flex flex-col min-h-screen bg-gray-50 transition-all duration-200 ${sidebarOpen ? "lg:ml-[200px]" : "lg:ml-20"}`}>
         <header className="sticky top-0 z-20 flex items-center gap-3 border border-gray-200 bg-white px-4 py-2 shadow-sm lg:shadow-none rounded-md">
           <button
             onClick={toggleSidebar}
             className="text-gray-600 lg:hidden transition-transform hover:scale-110"
+            aria-label="Toggle menu"
           >
             <MenuIcon className="h-6 w-6" />
           </button>
@@ -265,37 +311,17 @@ export default function StoriesDashboard() {
           <Link
             href="/"
             className="flex items-center gap-2 text-gray-700 hover:text-gray-900 transition-colors"
+            aria-label="Return home"
           >
             <ArrowLeft className="h-5 w-5 transition-transform hover:-translate-x-1" />
             <span className="font-medium">Stories</span>
           </Link>
 
-          {/* Optimized user profile with Next.js Image */}
-          <div className="ml-auto hidden lg:flex items-center border rounded-lg px-3 py-1.5 bg-white shadow-sm gap-5 hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-3">
-              <Image
-                src="https://storage.googleapis.com/moviebucket4/a66e3c587b925507a17595d38b9654c3a4847f76.png"
-                alt="User profile"
-                width={36}
-                height={36}
-                className="w-9 h-9 rounded-full object-cover shrink-0 transition-transform hover:scale-110"
-                priority
-                quality={85}
-              />
-              <div className="flex flex-col text-left leading-tight">
-                <span className="text-xs text-gray-500">Welcome back</span>
-                <span className="text-base font-medium text-gray-500">
-                  Akshita Patel
-                </span>
-              </div>
-            </div>
-            <div className="ml-9">
-              <ChevronDownIcon className="w-4 h-4 text-gray-500 transition-transform hover:rotate-180" />
-            </div>
-          </div>
+          {UserProfile}
         </header>
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8">
+          {/* Search and actions */}
           <div className="mb-4 flex flex-col gap-2 rounded-md border border-gray-200 bg-white py-2 px-3 shadow-sm md:flex-row md:items-center md:justify-end">
             <div className="relative w-full md:w-1/2 lg:w-1/3 mr-2">
               <Search
@@ -305,30 +331,35 @@ export default function StoriesDashboard() {
               <input
                 placeholder="Search"
                 className="w-full rounded-md border text-black px-6 py-1.5 pl-10 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-all"
+                aria-label="Search stories"
               />
             </div>
 
             <div className="flex items-center gap-2">
               <div className="flex gap-2 mr-6">
-                <button className="rounded-md bg-gray-100 p-1.5 hover:bg-gray-200 transition-all">
-                  <CalendarIcon
-                    size={16}
-                    className="text-indigo-900 transition-transform duration-300 hover:scale-125"
-                  />
+                <button 
+                  className="rounded-md bg-gray-100 p-1.5 hover:bg-gray-200 transition-all"
+                  aria-label="Calendar"
+                >
+                  <CalendarIcon className="text-indigo-900 transition-transform duration-300 hover:scale-125" />
                 </button>
-                <button className="rounded-md bg-gray-100 p-1.5 hover:bg-gray-200 transition-all">
-                  <DescendingLinesIcon
-                    size={16}
-                    className="text-indigo-900 transition-transform duration-300 hover:scale-125"
-                  />
+                <button 
+                  className="rounded-md bg-gray-100 p-1.5 hover:bg-gray-200 transition-all"
+                  aria-label="Sort"
+                >
+                  <DescendingLinesIcon className="text-indigo-900 transition-transform duration-300 hover:scale-125" />
                 </button>
               </div>
-              <button className="whitespace-nowrap rounded-md bg-blue-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800 transition-all hover:-translate-y-0.5">
+              <button 
+                className="whitespace-nowrap rounded-md bg-blue-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800 transition-all hover:-translate-y-0.5"
+                aria-label="Add new story"
+              >
                 Add New Story
               </button>
             </div>
           </div>
 
+          {/* Tabs */}
           <div className="mb-4 overflow-x-auto border-b">
             <nav className="flex whitespace-nowrap">
               {tabs.map((t) => (
@@ -340,6 +371,7 @@ export default function StoriesDashboard() {
                       ? "bg-blue-900 text-white"
                       : "border-transparent text-gray-900 hover:border-gray-300 hover:text-gray-700"
                   }`}
+                  aria-label={`Show ${t.label} stories`}
                 >
                   {t.label} ({t.count.toLocaleString()})
                 </button>
@@ -347,6 +379,7 @@ export default function StoriesDashboard() {
             </nav>
           </div>
 
+          {/* Stories grid */}
           <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
             {stories.map((story) => (
               <StoryCard key={story.id} story={story} />
